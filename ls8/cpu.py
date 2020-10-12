@@ -2,13 +2,31 @@
 
 import sys
 
+# pulled from printl8.ls8 example file
+HLT = 0b00000001
+LDI = 0b10000010
+PRN = 0b01000111
+
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.reg = [0] * 8
+        self.pc = 0
+        self.halted = False
 
+    # should accept the address to read and return the value stored there.
+    # Memory Address Register (MAR) contains the address that is being read or written to
+    def ram_read(self, MAR):
+        return self.ram[MAR]
+
+    # should accept a value to write, and the address to write it to.
+    # Memory Data Register (MDR) contains the data that was read or the data to write
+    def ram_write(self, MDR, MAR):
+        self.ram[MAR] = MDR
+    
     def load(self):
         """Load a program into memory."""
 
@@ -60,6 +78,41 @@ class CPU:
 
         print()
 
+    # HALT
+    # like exit() in python
+    def HLT(self):
+        self.halted = False
+
+    # LDI Register Immediate
+    # sets a specified register to a specified value.
+    def LDI(self, register, MDR):
+        self.reg[register] = MDR
+
+    # `PRN register` pseudo-instruction
+    # Print numeric value stored in the given register.
+    def PRN(self, register):
+        print(self.reg[register])
+
     def run(self):
         """Run the CPU."""
-        pass
+
+        while not self.halted:
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
+            instruction_register = self.pc
+            instruction = self.ram[instruction_register]
+
+            # # Set the value of a register to an integer.
+            if instruction == LDI:
+                self.LDI(operand_a, operand_b)
+                self.pc += 2
+
+            # Print to the console the decimal integer value that is stored in the given register.
+            elif instruction == PRN:
+                self.PRN(operand_a)
+                self.pc += 1
+
+            # exit the loop if a HLT instruction is encountered, regardless of whether or not there are more lines of code in the LS-8 program you loaded.We can consider HLT to be similar to Python's exit() in that we stop whatever we are doing, wherever we are.
+            elif instruction == HLT:
+                self.halted = True
+            self.pc += 1

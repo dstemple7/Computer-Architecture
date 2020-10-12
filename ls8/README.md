@@ -60,7 +60,11 @@ but you'll have to implement those three above instructions first!
 ## Step 0: IMPORTANT: inventory what is here!
 
 * Make a list of files here.
+  - CPU.py
+  - LS8.py
 * Write a short 3-10-word description of what each file does.
+  - CPU contains the CPU Class & all related functions and methods
+  - LS8 imports, loads, and runs the CPU
 * Note what has been implemented, and what hasn't.
 * Read this whole file.
 * Skim the spec.
