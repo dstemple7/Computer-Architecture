@@ -1,11 +1,11 @@
 """CPU functionality."""
 
-import sys
-
-# pulled from printl8.ls8 example file
 HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
+MUL = 0b10100010
+
+import sys
 
 class CPU:
     """Main CPU class."""
@@ -16,6 +16,35 @@ class CPU:
         self.reg = [0] * 8
         self.pc = 0
         self.halted = False
+        self.branch_table = {}
+        self.branch_table[HLT] = self.HLT
+        self.branch_table[LDI] = self.LDI
+        self.branch_table[PRN] = self.PRN
+        self.branch_table[MUL] = self.MUL
+    
+    def load(self):
+        """Load a program into memory."""
+
+        address = 0
+
+        if len(sys.argv) != 2:
+            print('need 2nd arg')
+            sys.exit(1)
+
+        try:
+            with open(sys.argv[1]) as f:
+                for line in f:
+                    line = line.strip()
+
+                    if line == '' or line[0] == '#':
+                        continue
+                    else:
+                        self.ram[address] = int(line.split()[0], 2)
+
+                    address += 1                    
+        except FileNotFoundError:
+            print(f'{sys.argv[0]} {sys.argv[1]} not found')
+            sys.exit(2)
 
     # should accept the address to read and return the value stored there.
     # Memory Address Register (MAR) contains the address that is being read or written to
@@ -26,28 +55,6 @@ class CPU:
     # Memory Data Register (MDR) contains the data that was read or the data to write
     def ram_write(self, MDR, MAR):
         self.ram[MAR] = MDR
-    
-    def load(self):
-        """Load a program into memory."""
-
-        address = 0
-
-        # For now, we've just hardcoded a program:
-
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
-
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
-
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -55,6 +62,9 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[self.ram[reg_a]] *= self.reg[self.ram[reg_b]]
+            self.pc += 3
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -81,38 +91,30 @@ class CPU:
     # HALT
     # like exit() in python
     def HLT(self):
-        self.halted = False
+        self.halted = True
 
     # LDI Register Immediate
     # sets a specified register to a specified value.
-    def LDI(self, register, MDR):
-        self.reg[register] = MDR
+    def LDI(self):
+        register = self.ram_read(self.pc+1)
+        val = self.ram_read(self.pc+2)
+        self.reg[register] = val
+        self.pc += 3
 
     # `PRN register` pseudo-instruction
     # Print numeric value stored in the given register.
-    def PRN(self, register):
+    def PRN(self):
+        register = self.ram_read(self.pc+1)
         print(self.reg[register])
+        self.pc +=2
+
+    def MUL(self):
+        self.alu("MUL", self.pc+1, self.pc+2)
 
     def run(self):
         """Run the CPU."""
 
         while not self.halted:
-            operand_a = self.ram_read(self.pc + 1)
-            operand_b = self.ram_read(self.pc + 2)
-            instruction_register = self.pc
-            instruction = self.ram[instruction_register]
-
-            # # Set the value of a register to an integer.
-            if instruction == LDI:
-                self.LDI(operand_a, operand_b)
-                self.pc += 2
-
-            # Print to the console the decimal integer value that is stored in the given register.
-            elif instruction == PRN:
-                self.PRN(operand_a)
-                self.pc += 1
-
-            # exit the loop if a HLT instruction is encountered, regardless of whether or not there are more lines of code in the LS-8 program you loaded.We can consider HLT to be similar to Python's exit() in that we stop whatever we are doing, wherever we are.
-            elif instruction == HLT:
-                self.halted = True
-            self.pc += 1
+            internal_registers = self.ram_read(self.pc)
+            if internal_registers in self.branch_table:
+                self.branch_table[internal_registers]()
