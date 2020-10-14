@@ -4,6 +4,8 @@ HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
 MUL = 0b10100010
+POP = 0b01000110
+PUSH = 0b01000101
 
 import sys
 
@@ -21,6 +23,9 @@ class CPU:
         self.branch_table[LDI] = self.LDI
         self.branch_table[PRN] = self.PRN
         self.branch_table[MUL] = self.MUL
+        self.branch_table[POP] = self.POP
+        self.branch_table[PUSH] = self.PUSH
+        self.sp = 7
     
     def load(self):
         """Load a program into memory."""
@@ -111,9 +116,22 @@ class CPU:
     def MUL(self):
         self.alu("MUL", self.pc+1, self.pc+2)
 
+    def PUSH(self):
+        self.reg[self.sp] -= 1
+        reg_num = self.ram[self.pc + 1]
+        val = self.reg[reg_num]
+        self.ram[self.reg[self.sp]] = val
+        self.pc += 2
+
+    def POP(self):
+        addr = self.reg[self.sp]
+        val = self.ram[addr]
+        self.reg[self.ram[self.pc + 1]] = val
+        self.reg[self.sp] += 1
+        self.pc += 2
+
     def run(self):
         """Run the CPU."""
-
         while not self.halted:
             internal_registers = self.ram_read(self.pc)
             if internal_registers in self.branch_table:
