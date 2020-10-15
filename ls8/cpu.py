@@ -6,6 +6,9 @@ PRN = 0b01000111
 MUL = 0b10100010
 POP = 0b01000110
 PUSH = 0b01000101
+CALL = 0b01010000
+RET = 0b00010001
+ADD = 0b10100000
 
 import sys
 
@@ -25,6 +28,9 @@ class CPU:
         self.branch_table[MUL] = self.MUL
         self.branch_table[POP] = self.POP
         self.branch_table[PUSH] = self.PUSH
+        self.branch_table[CALL] = self.CALL
+        self.branch_table[RET] = self.RET
+        self.branch_table[ADD] = self.ADD
         self.sp = 7
     
     def load(self):
@@ -65,7 +71,8 @@ class CPU:
         """ALU operations."""
 
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
+            self.reg[self.ram[reg_a]] += self.reg[self.ram[reg_b]]
+            self.pc += 3
         #elif op == "SUB": etc
         elif op == "MUL":
             self.reg[self.ram[reg_a]] *= self.reg[self.ram[reg_b]]
@@ -116,6 +123,9 @@ class CPU:
     def MUL(self):
         self.alu("MUL", self.pc+1, self.pc+2)
 
+    def ADD(self):
+        self.alu("ADD", self.pc+1, self.pc+2)
+
     def PUSH(self):
         self.reg[self.sp] -= 1
         reg_num = self.ram[self.pc + 1]
@@ -130,9 +140,35 @@ class CPU:
         self.reg[self.sp] += 1
         self.pc += 2
 
+    def CALL(self):
+        # addr = self.pc + 2
+        # self.reg[6] -= 1
+        # self.ram[self.reg[6]] = addr
+        # self.pc = self.reg[self.ram_read(self.pc + 1)]
+        given_register = self.ram[self.pc + 1]
+        self.reg[self.sp] -= 1
+        self.ram[self.reg[self.sp]] = self.pc + 2
+        self.pc = self.reg[given_register]
+
+    def RET(self):
+        # SP = self.ram[self.reg[6]]
+        # self.pc = SP
+        # self.reg[6] += 1
+        self.pc = self.ram[self.reg[self.sp]]
+        self.reg[self.sp] += 1
+
     def run(self):
         """Run the CPU."""
         while not self.halted:
-            internal_registers = self.ram_read(self.pc)
-            if internal_registers in self.branch_table:
-                self.branch_table[internal_registers]()
+            # internal_registers = self.ram_read(self.pc)
+            # if internal_registers in self.branch_table:
+            #     self.branch_table[internal_registers]()
+            IR = self.pc
+            instance = self.ram[IR]
+
+            try:
+                self.branch_table[instance]()
+            
+            except KeyError:
+                print(f"{self.reg[self.ram[instance]]}")
+                sys.exit(1)
