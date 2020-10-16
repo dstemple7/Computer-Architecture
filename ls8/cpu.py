@@ -9,6 +9,10 @@ PUSH = 0b01000101
 CALL = 0b01010000
 RET = 0b00010001
 ADD = 0b10100000
+CMP = 0b10100111
+JEQ = 0b01010101
+JMP = 0b01010100
+JNE = 0b01010110
 
 import sys
 
@@ -19,6 +23,7 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 256
         self.reg = [0] * 8
+        self.flg = [0] * 8
         self.pc = 0
         self.halted = False
         self.branch_table = {}
@@ -31,6 +36,10 @@ class CPU:
         self.branch_table[CALL] = self.CALL
         self.branch_table[RET] = self.RET
         self.branch_table[ADD] = self.ADD
+        self.branch_table[CMP] = self.CMP
+        self.branch_table[JEQ] = self.JEQ
+        self.branch_table[JMP] = self.JMP
+        self.branch_table[JNE] = self.JNE
         self.sp = 7
     
     def load(self):
@@ -76,6 +85,14 @@ class CPU:
         #elif op == "SUB": etc
         elif op == "MUL":
             self.reg[self.ram[reg_a]] *= self.reg[self.ram[reg_b]]
+            self.pc += 3
+        elif op == "CMP":
+            if self.reg[self.ram[reg_a]] == self.reg[self.ram[reg_b]]:
+                self.flg[7] = 1
+            elif self.reg[self.ram[reg_a]] > self.reg[self.ram[reg_b]]:
+                self.flg[6] = 1
+            elif self.reg[self.ram[reg_a]] < self.reg[self.ram[reg_b]]:
+                self.flg[5] = 1
             self.pc += 3
         else:
             raise Exception("Unsupported ALU operation")
@@ -125,6 +142,35 @@ class CPU:
 
     def ADD(self):
         self.alu("ADD", self.pc+1, self.pc+2)
+
+    def CMP(self):
+        # *This is an instruction handled by the ALU.*
+        # `CMP registerA registerB`
+        # Compare the values in two registers.
+        # * If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
+        # * If registerA is less than registerB, set the Less-than `L` flag to 1,  otherwise set it to 0.
+        # * If registerA is greater than registerB, set the Greater-than `G` flag to 1, otherwise set it to 0.
+        self.alu("CMP", self.pc+1, self.pc+2)
+
+    def JEQ(self):
+        # If `greater-than` flag flg[6] or `equal` flag flg[7] is set (true), jump to the address stored in the given register.
+        if self.flg[7] == 1:
+            self.pc = self.reg[self.ram[self.pc+1]]
+        else:
+            self.pc += 2
+
+    def JMP(self):
+        # Jump to the address stored in the given register
+        # Set the `PC` to the address stored in the given register
+        given_register = self.reg[self.ram[self.pc+1]]
+        self.pc = given_register
+
+    def JNE(self):
+        # If `E` flag flg[7] is clear (false, 0), jump to the address stored in the given register.
+        if self.flg[7] == 0:
+            self.pc = self.reg[self.ram[self.pc+1]]
+        else:
+            self.pc += 2
 
     def PUSH(self):
         self.reg[self.sp] -= 1
